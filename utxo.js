@@ -7,6 +7,7 @@ let address = "kaspa:qqt8ak26n702ts6q9g5u3z0actt7xj0usjsw44ffne0snu9a6ce9xynwdyr
 
 
 let cmd = `./kaspa-rpc.js getUtxosByAddresses --addresses=[\'"${address}"\']`
+cmd = `./kaspa-rpc.js --subscribe notifyUtxosChanged --addresses=[\'"${address}"\']`
 
 const cwd = path.join(__dirname, "node_modules/@kaspa/wallet-cli");
 //console.log("cwd:", cwd)
