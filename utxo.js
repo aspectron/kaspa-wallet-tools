@@ -1,35 +1,77 @@
 #!/usr/bin/env node
+const { RPC } = require('@kaspa/grpc-node');
+const utils = require('@aspectron/flow-utils');
+let host = "127.0.0.1:16110";
+let addresses = ["kaspa:xxxxxx"]
+let doSubscribe = false;
 
-const { exec } = require('child_process');
-const path = require("path");
+let args = utils.args();
 
-let address = "kaspa:qqt8ak26n702ts6q9g5u3z0actt7xj0usjsw44ffne0snu9a6ce9xynwdyr46";
+if(args.help){
+    console.log("uses:  \n./utxo --host='127.0.0.1:16110' --address='kaspa:xxxxxx' --subscribe ")
+    process.exit(0);
+}
+
+if(args.host){
+    host = args.host
+}
+
+if(args.address){
+    addresses = [args.address]
+}
+
+if(args.subscribe){
+    doSubscribe = true
+}
 
 
-let cmd = `./kaspa-rpc.js getUtxosByAddresses --addresses=[\'"${address}"\']`
-cmd = `./kaspa-rpc.js --subscribe notifyUtxosChanged --addresses=[\'"${address}"\']`
-
-const cwd = path.join(__dirname, "node_modules/@kaspa/wallet-cli");
-//console.log("cwd:", cwd)
-//console.log("command\n", cmd);
-
-exec(cmd, {cwd}, (err, stdout, stderr) => {
-    //console.log("stdout", err, stdout)
-    if (err || stderr) {
-        console.log(err || stderr);
-        return;
+const rpc = new RPC({
+    clientConfig:{
+        host,
+        reconnect : false,
+        verbose : false,
+        disableConnectionCheck : false
     }
-    //console.log("stdout", stdout)
-    let entries = JSON.parse(stdout).entries;
-    //console.log(entries);
-    buildBalance(entries)
 });
 
-function buildBalance(entries){
-    let sum = 0;
+
+let sum = 0;
+
+//console.log("rpc", rpc.client.isConnected)
+rpc.onConnect(()=>{
+    //console.log("onConnect")
+    rpc.getUtxosByAddresses(addresses)
+    .then(buildBalance)
+    .catch(err=>{
+        console.log("getUtxosByAddresses:error", err)
+    })
+})
+
+function subscribe(){
+    rpc.subscribeUtxosChanged(addresses, ({added, removed})=>{
+        console.log("data", added, removed)
+        added.map(entry=>{
+            sum += +entry.utxoEntry.amount
+        })
+        removed.map(entry=>{
+            sum -= +entry.utxoEntry.amount
+        })
+
+        console.log("UTXO BALANCE:", sum);
+    })
+}
+
+function buildBalance({entries}){
+    //console.log("entries", entries)
     entries.map(entry=>{
-        sum += entry.amount;
+        sum += +entry.utxoEntry.amount;
     })
 
     console.log("UTXO BALANCE:", sum);
+
+    if(doSubscribe)
+        subscribe()
+    else{
+        rpc.disconnect();
+    }
 }
