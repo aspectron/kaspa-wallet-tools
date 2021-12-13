@@ -24,6 +24,26 @@ if(args.subscribe){
     doSubscribe = true
 }
 
+let format;
+if(typeof Intl != "undefined"){
+    let intInfo = Intl.DateTimeFormat().resolvedOptions();
+    let locale_ = intInfo.locale || 'en-US';
+    if(intInfo.timeZone.toLowerCase() == 'asia/calcutta'){
+        locale_ = 'en-IN';
+    }
+
+    format = (number)=>{
+        return new Intl.NumberFormat(locale_, {
+            style: 'currency',
+            currency: 'KAS'
+        }).format(number/1e8)
+    }
+}else{
+    format = (number)=>{
+        return number/1e8
+    }
+}
+
 
 const rpc = new RPC({
     clientConfig:{
@@ -54,10 +74,11 @@ function subscribe(){
             sum += +entry.utxoEntry.amount
         })
         removed.map(entry=>{
-            sum -= +entry.utxoEntry.amount
+            if(entry.utxoEntry)
+                sum -= +entry.utxoEntry.amount
         })
 
-        console.log("UTXO BALANCE:", sum);
+        console.log("UTXO BALANCE:", format(sum));
     })
 }
 
@@ -67,7 +88,7 @@ function buildBalance({entries}){
         sum += +entry.utxoEntry.amount;
     })
 
-    console.log("UTXO BALANCE:", sum);
+    console.log("UTXO BALANCE:", format(sum));
 
     if(doSubscribe)
         subscribe()
